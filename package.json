@@ -1,0 +1,61 @@
+{
+  "name": "nook",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NOOK modular monolith for secure, personalized saved resources.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.18.1"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
+    "lint": "eslint .",
+    "pretest": "node scripts/prepare-test-db.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prisma:generate": "prisma generate",
+    "prisma:validate": "prisma validate",
+    "prisma:migrate": "prisma migrate dev",
+    "categories:normalize": "tsx scripts/normalize-categories.ts",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "web:dev": "npm --prefix web run dev",
+    "web:build": "npm --prefix web run build"
+  },
+  "dependencies": {
+    "@prisma/client": "6.16.0",
+    "bcryptjs": "3.0.2",
+    "cheerio": "^1.2.0",
+    "cors": "2.8.5",
+    "dotenv": "16.6.1",
+    "express": "5.1.0",
+    "helmet": "8.1.0",
+    "jsonwebtoken": "9.0.2",
+    "pdf-parse": "^2.4.5",
+    "pino": "9.9.0",
+    "pino-http": "10.5.0",
+    "zod": "4.1.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/bcryptjs": "2.4.6",
+    "@types/cors": "2.8.19",
+    "@types/express": "5.0.3",
+    "@types/jsonwebtoken": "9.0.10",
+    "@types/node": "24.3.0",
+    "@types/supertest": "6.0.3",
+    "confbox": "^0.3.1",
+    "eslint": "^10.12.0",
+    "globals": "^16.0.0",
+    "prisma": "6.16.0",
+    "supertest": "7.1.4",
+    "tsx": "4.20.5",
+    "typescript": "5.9.2",
+    "typescript-eslint": "^8.71.2",
+    "vitest": "3.2.4"
+  }
+}

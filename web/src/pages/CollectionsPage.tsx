@@ -1,0 +1,39 @@
+import { useEffect, useState } from "react";
+import { ApiError, api } from "../api";
+import type { Bookmark, Category, Collection, CollectionDetail } from "../types";
+import { CollectionForm } from "../components/CollectionForm";
+import { SuggestionList } from "../components/SuggestionList";
+import { EmptyState, ErrorNotice, PageHeader, SpinnerButton } from "../components/AppLayout";
+
+export function CollectionsPage() {
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const [detail, setDetail] = useState<CollectionDetail | null>(null);
+  const [selectedId, setSelectedId] = useState("");
+  const [form, setForm] = useState<"create" | "edit" | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [addingBookmark, setAddingBookmark] = useState(false);
+  const [newBookmarkId, setNewBookmarkId] = useState("");
+  const [error, setError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => { let active = true; setLoading(true); setError(""); Promise.all([api.collections.list(), api.categories.list(), api.bookmarks.list({ limit: 100 })]).then(([collectionResult, categoryResult, bookmarkResult]) => { if (!active) return; setCollections(collectionResult.items); setCategories(categoryResult); setBookmarks(bookmarkResult.items); if (!selectedId && collectionResult.items[0]) setSelectedId(collectionResult.items[0].id); }).catch((cause) => { if (active) setError(cause instanceof ApiError ? cause.message : "Could not load your collections."); }).finally(() => { if (active) setLoading(false); }); return () => { active = false; }; }, [refreshKey]);
+  useEffect(() => { if (!selectedId) { setDetail(null); return; } let active = true; setDetailLoading(true); api.collections.get(selectedId).then((result) => { if (active) setDetail(result); }).catch((cause) => { if (active) setError(cause instanceof ApiError ? cause.message : "Could not open this collection."); }).finally(() => { if (active) setDetailLoading(false); }); return () => { active = false; }; }, [selectedId, refreshKey]);
+
+  function refresh() { setRefreshKey((key) => key + 1); }
+  async function removeCollection() { if (!detail || !window.confirm(`Delete “${detail.name}”? Its bookmarks will stay in your library.`)) return; try { await api.collections.remove(detail.id); setSelectedId(""); setDetail(null); refresh(); } catch (cause) { setError(cause instanceof ApiError ? cause.message : "Could not delete this collection."); } }
+  async function addBookmark() { if (!detail || !newBookmarkId) return; setAddingBookmark(true); setError(""); try { await api.collections.addBookmark(detail.id, newBookmarkId); setNewBookmarkId(""); const fresh = await api.collections.get(detail.id); setDetail(fresh); refresh(); } catch (cause) { setError(cause instanceof ApiError ? cause.message : "Could not add that bookmark."); } finally { setAddingBookmark(false); } }
+  async function removeBookmark(bookmarkId: string) { if (!detail) return; try { await api.collections.removeBookmark(detail.id, bookmarkId); setDetail(await api.collections.get(detail.id)); refresh(); } catch (cause) { setError(cause instanceof ApiError ? cause.message : "Could not remove that bookmark."); } }
+  const available = bookmarks.filter((bookmark) => !detail?.bookmarks.some(({ bookmark: member }) => member.id === bookmark.id));
+
+  return <div className="page-wrap collections-page"><PageHeader eyebrow="Themed corners" title="Collections" description="Gather saved things around a purpose, a season, or a feeling." action={<button className="primary-button save-button" onClick={() => setForm("create")}><span>＋</span> New collection</button>} />
+    {error && <ErrorNotice message={error} onRetry={refresh} />}
+    <div className="collections-layout"><aside className="collection-list-panel"><div className="list-panel-heading"><span>{loading ? "Loading…" : `${collections.length} collections`}</span><button className="icon-button" onClick={() => setForm("create")} aria-label="Create collection">＋</button></div>{loading ? <><div className="list-skeleton" /><div className="list-skeleton" /><div className="list-skeleton" /></> : collections.length === 0 ? <EmptyState icon="◇" title="Start a corner" message="Create a collection to bring related bookmarks together." action={<button className="secondary-button" onClick={() => setForm("create")}>Create one</button>} /> : collections.map((collection) => <button className={`collection-list-item ${collection.id === selectedId ? "active" : ""}`} key={collection.id} onClick={() => setSelectedId(collection.id)}><span className="collection-mark">{collection.source === "AI" ? "✦" : "◇"}</span><span className="collection-list-copy"><strong>{collection.name}</strong><small>{collection._count.bookmarks} {collection._count.bookmarks === 1 ? "bookmark" : "bookmarks"}</small></span><span className="collection-chevron">→</span></button>)}</aside>
+      <section className="collection-detail-panel">{detailLoading ? <div className="detail-loading"><span className="spinner" />Opening collection…</div> : detail ? <><div className="collection-detail-head"><div><div className="collection-kicker"><span className={detail.source === "AI" ? "ai-badge" : "manual-badge"}>{detail.source === "AI" ? "✦ Nook suggestion" : "◇ Personal collection"}</span>{detail.category && <span className="category-badge">{detail.category.name}</span>}</div><h2>{detail.name}</h2>{detail.description && <p>{detail.description}</p>}</div><div className="detail-head-actions"><button className="icon-button" onClick={() => setForm("edit")} aria-label="Edit collection" title="Edit collection">✎</button><button className="icon-button danger-icon" onClick={() => void removeCollection()} aria-label="Delete collection" title="Delete collection">×</button></div></div><div className="membership-bar"><select value={newBookmarkId} onChange={(event) => setNewBookmarkId(event.target.value)} aria-label="Choose a bookmark to add"><option value="">Add a bookmark…</option>{available.map((bookmark) => <option key={bookmark.id} value={bookmark.id}>{bookmark.title || bookmark.sourceDomain || bookmark.url}</option>)}</select><SpinnerButton className="secondary-button" loading={addingBookmark} disabled={!newBookmarkId} onClick={() => void addBookmark()}>Add to collection</SpinnerButton></div>{detail.bookmarks.length === 0 ? <EmptyState icon="⌁" title="A quiet corner" message="Add bookmarks from the selector above to start filling this collection." /> : <div className="collection-bookmark-list">{detail.bookmarks.map(({ bookmark }) => <article className="collection-bookmark" key={bookmark.id}><div className="collection-bookmark-image">{bookmark.previewImageUrl ? <img src={bookmark.previewImageUrl} alt="" /> : <span>{(bookmark.title || bookmark.sourceDomain || "?").slice(0, 1)}</span>}</div><div className="collection-bookmark-copy"><span>{bookmark.sourceDomain || "Unknown source"}</span><h3>{bookmark.title || "Untitled bookmark"}</h3>{bookmark.description && <p>{bookmark.description}</p>}<a href={bookmark.url} target="_blank" rel="noopener noreferrer">Open original ↗</a></div><button className="icon-button subtle" onClick={() => void removeBookmark(bookmark.id)} aria-label={`Remove ${bookmark.title || "bookmark"} from collection`} title="Remove from collection">×</button></article>)}</div>}</> : <EmptyState icon="◇" title="Choose a collection" message="Select a collection from the left to see what it holds." />}</section>
+    </div>
+    <SuggestionList onAccepted={refresh} />
+    {form && <CollectionForm collection={form === "edit" ? detail || undefined : undefined} categories={categories} onClose={() => setForm(null)} onSaved={() => { setForm(null); refresh(); }} />}
+  </div>;
+}

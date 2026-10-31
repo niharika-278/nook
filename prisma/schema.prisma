@@ -1,0 +1,192 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String           @id @default(cuid())
+  email       String           @unique
+  passwordHash String
+  displayName String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  bookmarks   Bookmark[]
+  categories  Category[]
+  tags        Tag[]
+  corrections UserCorrection[]
+  collections Collection[]
+  collectionSuggestions CollectionSuggestion[]
+}
+
+model Bookmark {
+  id              String             @id @default(cuid())
+  userId          String
+  categoryId      String?
+  categorySource  String             @default("NONE")
+  url             String
+  canonicalUrl    String
+  title           String?
+  description     String?
+  author          String?
+  publishedAt     DateTime?
+  faviconUrl      String?
+  previewImageUrl String?
+  sourceDomain    String?
+  contentType     String?
+  extractedText   String?
+  contentHash     String?
+  processingStatus String             @default("PENDING")
+  processingError String?
+  contentStatus   String             @default("PENDING")
+  contentError    String?
+  processingStartedAt DateTime?
+  processedAt     DateTime?
+  duplicateType   String             @default("NONE")
+  duplicateOfId   String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category        Category?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags            BookmarkTag[]
+  collections     CollectionBookmark[]
+  classification  AIClassification?
+  corrections    UserCorrection[]
+  suggestions    CollectionSuggestionBookmark[]
+
+  @@unique([userId, canonicalUrl])
+  @@index([userId, createdAt])
+  @@index([userId, categoryId])
+  @@index([userId, processingStatus])
+}
+
+model Category {
+  id        String     @id @default(cuid())
+  userId    String
+  name      String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookmarks Bookmark[]
+  collections Collection[]
+
+  @@unique([userId, name])
+  @@index([userId, createdAt])
+}
+
+model Tag {
+  id        String        @id @default(cuid())
+  userId    String
+  name      String
+  normalizedName String
+  createdAt DateTime      @default(now())
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookmarks BookmarkTag[]
+
+  @@unique([userId, normalizedName])
+  @@index([userId, createdAt])
+}
+
+model BookmarkTag {
+  bookmarkId String
+  tagId      String
+  createdAt  DateTime @default(now())
+  bookmark   Bookmark @relation(fields: [bookmarkId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([bookmarkId, tagId])
+  @@index([tagId])
+}
+
+model Collection {
+  id        String              @id @default(cuid())
+  userId    String
+  categoryId String?
+  name      String
+  description String?
+  source    String              @default("MANUAL")
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  bookmarks CollectionBookmark[]
+
+  @@unique([userId, name])
+  @@index([userId, createdAt])
+}
+
+model CollectionBookmark {
+  collectionId String
+  bookmarkId   String
+  createdAt    DateTime   @default(now())
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  bookmark     Bookmark   @relation(fields: [bookmarkId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, bookmarkId])
+  @@index([bookmarkId])
+}
+
+model UserCorrection {
+  id              String    @id @default(cuid())
+  userId          String
+  bookmarkId      String?
+  domain          String?
+  contentType     String?
+  originalCategory String?
+  correctedCategory String?
+  originalTags    String?
+  correctedTags   String?
+  keywords        String?
+  reason          String?
+  createdAt       DateTime  @default(now())
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookmark        Bookmark? @relation(fields: [bookmarkId], references: [id], onDelete: SetNull)
+
+  @@index([userId, domain])
+  @@index([userId, contentType])
+}
+
+model AIClassification {
+  id           String   @id @default(cuid())
+  bookmarkId   String   @unique
+  provider     String
+  model        String
+  categoryName String?
+  tags         String
+  summary      String?
+  confidence   Float?
+  promptVersion String
+  classificationStage String   @default("CONTENT")
+  createdAt    DateTime @default(now())
+  bookmark     Bookmark @relation(fields: [bookmarkId], references: [id], onDelete: Cascade)
+}
+
+model CollectionSuggestion {
+  id          String                         @id @default(cuid())
+  userId      String
+  name        String
+  description String
+  status      String                         @default("PENDING")
+  provider    String
+  model       String
+  createdAt   DateTime                       @default(now())
+  reviewedAt  DateTime?
+  user        User                           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookmarks   CollectionSuggestionBookmark[]
+
+  @@index([userId, status, createdAt])
+}
+
+model CollectionSuggestionBookmark {
+  suggestionId String
+  bookmarkId   String
+  createdAt    DateTime             @default(now())
+  suggestion   CollectionSuggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+  bookmark     Bookmark              @relation(fields: [bookmarkId], references: [id], onDelete: Cascade)
+
+  @@id([suggestionId, bookmarkId])
+  @@index([bookmarkId])
+}

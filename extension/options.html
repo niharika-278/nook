@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Nook extension settings</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="options-shell">
+      <section class="panel">
+        <header class="brand">
+          <img class="brand-mark" src="icon.png" alt="Nook">
+          <div>
+            <h1>Nook extension settings</h1>
+            <p>Connect the extension to your Nook API.</p>
+          </div>
+        </header>
+        <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
+        <form id="config-form" novalidate>
+          <div class="field">
+            <label for="api-base-url">API base URL</label>
+            <input id="api-base-url" type="url" inputmode="url" autocomplete="url" required>
+          </div>
+          <p class="help-text">Use the API origin only, for example <code>http://localhost:3000</code>. Do not put API keys or other secrets here.</p>
+          <div class="options-actions">
+            <button class="primary-button" type="submit">Save settings</button>
+            <button id="reset-button" class="secondary-button" type="button">Use localhost</button>
+          </div>
+        </form>
+         <a id="app-link" class="app-link" href="http://localhost:5173" target="_blank" rel="noopener noreferrer">Open Nook web app</a>
+      </section>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>
